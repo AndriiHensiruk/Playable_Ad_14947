@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Playable_Ad_14947 </title>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            user-select: none; 
+            -webkit-user-select: none; 
+        }
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #111; 
+            overflow: hidden; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        #game-wrapper {
+            position: relative;
+            width: 360px;
+            height: 640px;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0; 
+            left: 0;
+            width: 100%; 
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hidden-video-asset {
+            position: absolute;
+            width: 1px; 
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .blurred { 
+            filter: blur(4px) brightness(0.5); 
+            transition: filter 0.5s ease; 
+        }
+
+        .ui-screen {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            z-index: 10; 
+            padding: 20px; 
+            transition: opacity 0.5s ease;
+        }
+        .hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
+
+        .title-img { 
+            width: 80%; 
+            max-height: 150px; 
+            object-fit: contain; 
+            margin-bottom: 40px; 
+        }
+        
+        .btn-png { 
+            width: 100%; 
+            max-height: 80px; 
+            object-fit: contain; 
+            cursor: pointer; 
+            animation: pulse 1.5s infinite ease-in-out; 
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        #tutorial-hand {
+            position: absolute; 
+            width: 60%; 
+            height: auto;
+            z-index: 5; 
+            pointer-events: none; 
+            transition: opacity 0.3s;
+        }
+        .hand-anim { 
+            animation: hand-move 1.8s infinite ease-in-out; 
+        }
+        @keyframes hand-move {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(0px, 45px) scale(0.9); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        /* Кнопка перемикання звуку */
+        #sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            z-index: 20;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            transition: transform 0.2s;
+        }
+        #sound-toggle:active {
+            transform: scale(0.9);
+        }
+        #sound-toggle svg {
+            width: 22px;
+            height: 22px;
+            fill: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <!-- Фонове відео -->
+    <video id="bg-video" loop muted playsinline class="blurred">
+        <source id="video-source" src="assets/video1.mp4" type="video/mp4">
+    </video>
+
+    <!-- Відео-шнурки -->
+    <video id="rope-video-1" class="hidden-video-asset" loop muted playsinline>
+        <source src="assets/rope1.webm" type="video/webm">
+    </video>
+    <video id="rope-video-2" class="hidden-video-asset" loop muted playsinline>
+        <source src="assets/rope2.webm" type="video/webm">
+    </video>
+
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <!-- Кнопка звуку -->
+    <div id="sound-toggle" onclick="toggleMute(event)">
+        <svg id="sound-icon" viewBox="0 0 24 24">
+            <!-- Іконка увімкненого звуку за замовчуванням -->
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+    </div>
+
+    <img id="tutorial-hand" src="assets/hand.png" alt="Вказівка пальцем" class="hidden">
+
+    <div id="start-screen" class="ui-screen">
+        <img src="assets/start_title.png" alt="Розв'яжи ведмедика" class="title-img">
+        <img src="assets/start_btn.png" alt="Грати" class="btn-png" onclick="startGame()">
+    </div>
+
+    <div id="end-screen" class="ui-screen hidden">
+        <img src="assets/final_btn.png" alt="Забрати приз" class="btn-png" onclick="ctaClick()">
+    </div>
+</div>
+
+<script>
+function resizeGame() {
+    const wrapper = document.getElementById('game-wrapper');
+    const scale = Math.min(window.innerWidth / 360, window.innerHeight / 640);
+    wrapper.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', resizeGame);
+window.addEventListener('load', resizeGame);
+resizeGame();
+
+const video = document.getElementById('bg-video');
+const videoSource = document.getElementById('video-source');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const hand = document.getElementById('tutorial-hand');
+
+const videoRope1 = document.getElementById('rope-video-1');
+const videoRope2 = document.getElementById('rope-video-2');
+
+// Ініціалізація аудіо
+const bgMusic = new Audio('assets/bg_music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.1;
+const startSound = new Audio('assets/start.m4a');
+const dragSound = new Audio('assets/rope_drag.mp3'); dragSound.loop = true;
+const winSound = new Audio('assets/win.mp3');
+const finalWinSound = new Audio('assets/final_win.m4a');
+
+let isMuted = false;
+let isGameStarted = false; 
+let isDragging = false;
+let activeNode = null;
+let lastInteractionTime = Date.now();
+let particles = [];
+let solvedCount = 0;
+
+const MAX_PULL_DISTANCE = 140; 
+
+const nodes = {
+    node1: { 
+        offsetX: 0, offsetY: 0, scale: 1.0,      
+        pivotX: 180, pivotY: 150,  
+        startX: 166, startY: 188,  
+        endX: 166,   endY: 188,       
+        vx: 0, vy: 0,
+        solved: false,
+        videoElement: videoRope1
+    },
+    node2: { 
+        offsetX: 0, offsetY: 0, scale: 1.0,      
+        pivotX: 180, pivotY: 150,  
+        startX: 164, startY: 320,  
+        endX: 164,   endY: 320,       
+        vx: 0, vy: 0,
+        solved: false,
+        videoElement: videoRope2
+    }
+};
+
+const spring = 0.14;
+const friction = 0.75;
+
+// Початкове налаштування гучності для плавного мікшування звуку тягнення
+dragSound.volume = 0;
+
+requestAnimationFrame(renderSplash);
+
+function renderSplash() {
+    if (isGameStarted) return; 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.filter = 'blur(8px) brightness(50%)';
+
+    ['node1', 'node2'].forEach(key => {
+        let node = nodes[key];
+        ctx.save();
+        try {
+            ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
+    });
+
+    ctx.filter = 'none';
+    requestAnimationFrame(renderSplash);
+}
+
+function startGame() {
+    isGameStarted = true; 
+    document.getElementById('start-screen').classList.add('hidden');
+    video.classList.remove('blurred');
+    
+    video.play();
+    videoRope1.play().catch(() => {});
+    videoRope2.play().catch(() => {});
+    
+    if (!isMuted) {
+        bgMusic.play().catch(() => console.log("Аудіо заблоковано браузером"));
+        startSound.play().catch(() => {});
+    }
+    
+    showTutorial();
+    update(); 
+}
+
+function toggleMute(e) {
+    if (e) e.stopPropagation(); // Щоб клік по кнопці не тригерив натискання на ігрове поле
+    isMuted = !isMuted;
+    
+    const icon = document.getElementById('sound-icon');
+    
+    if (isMuted) {
+        // SVG іконка вимкненого звуку
+        icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+        
+        bgMusic.pause();
+        dragSound.pause();
+    } else {
+        // SVG іконка увімкненого звуку
+        icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+        
+        if (isGameStarted && solvedCount < 2) {
+            bgMusic.play().catch(() => {});
+            if (isDragging) dragSound.play().catch(() => {});
+        }
+    }
+}
+
+function showTutorial() {
+    let targetNode = !nodes.node1.solved ? nodes.node1 : (!nodes.node2.solved ? nodes.node2 : null);
+    if (targetNode) {
+        hand.classList.remove('hidden');
+        hand.classList.add('hand-anim');
+        hand.style.left = (targetNode.endX - 15) + 'px';
+        hand.style.top = (targetNode.endY + 15) + 'px';
+    }
+}
+
+function hideTutorial() {
+    hand.classList.add('hidden');
+    hand.classList.remove('hand-anim');
+    lastInteractionTime = Date.now();
+}
+
+function spawnParticles(x, y) {
+    for (let i = 0; i < 35; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8 - 2,
+            radius: Math.random() * 4 + 2,
+            color: `hsl(${Math.random() * 40 + 15}, 100%, 70%)`, 
+            alpha: 1,
+            life: Math.random() * 20 + 20
+        });
+    }
+}
+
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+function onStart(e) {
+    if (!isGameStarted || solvedCount >= 2) return;
+    const pos = getMousePos(e);
+    
+    for (let key in nodes) {
+        let node = nodes[key];
+        if (!node.solved && Math.hypot(pos.x - node.endX, pos.y - node.endY) < 65) {
+            isDragging = true;
+            activeNode = node;
+            hideTutorial();
+            if (!isMuted) {
+                dragSound.volume = 0.1;
+                dragSound.play().catch(() => {});
+            }
+            break; 
+        }
+    }
+}
+
+function onMove(e) {
+    if (!isDragging || !activeNode) return;
+    e.preventDefault();
+    const pos = getMousePos(e);
+    
+    activeNode.endX = pos.x;
+    activeNode.endY = pos.y;
+
+    let distance = Math.hypot(activeNode.endX - activeNode.startX, activeNode.endY - activeNode.startY);
+    let pullProgress = Math.min(distance / MAX_PULL_DISTANCE, 1.0);
+
+    // Динамічна зміна гучності шурхоту залежно від сили натягу шнурка
+    if (!isMuted) {
+        dragSound.volume = Math.max(0.1, pullProgress * 0.8);
+    }
+
+    if (distance > MAX_PULL_DISTANCE) {
+        isDragging = false;
+        activeNode.solved = true;
+        solvedCount++;
+        dragSound.pause();
+        
+        try { activeNode.videoElement.pause(); } catch(e) {}
+
+        spawnParticles(activeNode.endX, activeNode.endY);
+
+        if (solvedCount === 1) {
+            if (!isMuted) winSound.play().catch(() => {});
+            showTutorial();
+        } else if (solvedCount === 2) {
+            if (!isMuted) {
+                bgMusic.pause();
+                finalWinSound.play().catch(() => {});
+            }
+            triggerEndGame();
+        }
+        activeNode = null;
+    }
+}
+
+function onEnd() {
+    if (isDragging) {
+        isDragging = false;
+        activeNode = null;
+        dragSound.pause();
+    }
+}
+
+window.addEventListener('mousedown', onStart);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onEnd);
+window.addEventListener('touchstart', onStart, { passive: false });
+window.addEventListener('touchmove', onMove, { passive: false });
+window.addEventListener('touchend', onEnd);
+
+function triggerEndGame() {
+   hideTutorial();
+    
+    video.removeAttribute('loop');
+    
+    videoSource.src = 'assets/video2.mp4';
+    video.load(); 
+    video.classList.add('blurred'); 
+    video.play();
+    
+    try { videoRope1.pause(); videoRope2.pause(); } catch(e) {}
+
+    setTimeout(() => {
+        document.getElementById('end-screen').classList.remove('hidden');
+    }, 1000);
+
+}
+
+function ctaClick() {
+    window.open('https://your-store-link.com', '_blank');
+}
+
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ['node1', 'node2'].forEach(key => {
+        let node = nodes[key];
+        if (node.solved) return; 
+
+        if (!isDragging || activeNode !== node) {
+            let ax = (node.startX - node.endX) * spring;
+            let ay = (node.startY - node.endY) * spring;
+            node.vx = (node.vx + ax) * friction;
+            node.vy = (node.vy + ay) * friction;
+            node.endX += node.vx;
+            node.endY += node.vy;
+        }
+
+        let pullDist = Math.hypot(node.endX - node.startX, node.endY - node.startY);
+        let pullProgress = Math.min(pullDist / MAX_PULL_DISTANCE, 1.0);
+
+        ctx.save();
+        ctx.translate(node.pivotX, node.pivotY);
+
+        let stretchLen = 1 + (pullProgress * 0.3); 
+        let thicknessFactor = 1 - (pullProgress * 0.4); 
+
+        ctx.scale(thicknessFactor, stretchLen);
+        ctx.translate(-node.pivotX, -node.pivotY);
+        ctx.globalAlpha = 1.0 - pullProgress;
+
+        try {
+            ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        
+        ctx.restore();
+
+        // Візуалізація хітбоксу
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(node.endX, node.endY, 65, 0, Math.PI * 2);
+        
+        if (isDragging && activeNode === node) {
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';  
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+        } else {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; 
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+        }
+        
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    });
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.alpha -= 1 / p.life;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.restore();
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+
+    if (!isDragging && Date.now() - lastInteractionTime > 3000 && solvedCount < 2) {
+        showTutorial();
+    }
+
+    requestAnimationFrame(update);
+}
+</script>
+
+</body>
+</html>

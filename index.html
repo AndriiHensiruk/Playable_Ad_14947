@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -195,10 +195,8 @@
         </svg>
     </div>
 
-    <!-- Гральна рука підказки -->
     <img id="tutorial-hand" src="assets/hand.png" alt="Вказівка пальцем" class="hidden">
 
-    <!-- Стартовий екран з кнопкою та анімованою ІНШОЮ рукою тапу -->
     <div id="start-screen" class="ui-screen">
         <img src="assets/start_title.png" alt="Розв'яжи ведмедика" class="title-img">
         <div class="btn-container" onclick="startGame()">
@@ -435,18 +433,39 @@ function ctaClick() {
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // СИНХРОНІЗАЦІЯ ВІДЕО (актуально для телефонів)
+    if (isGameStarted && solvedCount < 2) {
+        const masterTime = video.currentTime;
+        const maxOffset = 0.05; // Допустимий розсинхрон у секундах
+
+        if (!nodes.node1.solved) {
+            if (Math.abs(videoRope1.currentTime - masterTime) > maxOffset) {
+                videoRope1.currentTime = masterTime;
+            }
+            if (Math.abs(videoOutline1.currentTime - masterTime) > maxOffset) {
+                videoOutline1.currentTime = masterTime;
+            }
+        }
+        if (!nodes.node2.solved) {
+            if (Math.abs(videoRope2.currentTime - masterTime) > maxOffset) {
+                videoRope2.currentTime = masterTime;
+            }
+            if (Math.abs(videoOutline2.currentTime - masterTime) > maxOffset) {
+                videoOutline2.currentTime = masterTime;
+            }
+        }
+    }
+
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         if (node.solved) return; 
 
-        // 1. Базовий шнурок
         ctx.save();
         try {
             ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
         ctx.restore();
 
-        // 2. Зелена обводка з неоновим мерехтінням
         ctx.save();
         let pulseFactor = 0.6 + Math.sin(Date.now() * 0.012) * 0.3;
         let noiseFactor = (Math.random() - 0.5) * 0.12;
@@ -481,7 +500,6 @@ function update() {
         
         ctx.fillStyle = p.color;
         ctx.shadowBlur = 10;
-        // Червоне неонове світіння навколо частинок
         ctx.shadowColor = p.color;
         ctx.fill();
         ctx.restore();

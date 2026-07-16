@@ -40,14 +40,6 @@
             object-fit: cover;
         }
 
-        .hidden-video-asset {
-            position: absolute;
-            width: 1px; 
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-        }
-
         .blurred { 
             filter: blur(4px) brightness(0.5); 
             transition: filter 0.5s ease; 
@@ -104,7 +96,7 @@
 
         #tutorial-hand {
             position: absolute; 
-            width: 70%; 
+            width: 100%; 
             height: auto;
             z-index: 5; 
             pointer-events: none; 
@@ -114,9 +106,9 @@
             animation: hand-move 1.8s infinite ease-in-out; 
         }
         @keyframes hand-move {
-            0% { transform: translate(60px, -60px) scale(1); }
-            50% { transform: translate(60px, 5px) scale(0.9); }
-            100% { transform: translate(60px, -60px) scale(1); }
+            0% { transform: translate(10px, -60px) scale(1); }
+            50% { transform: translate(10px, 5px) scale(0.9); }
+            100% { transform: translate(10px, -60px) scale(1); }
         }
 
         #splash-hand {
@@ -135,7 +127,6 @@
             100% { transform: translate(0, 0) scale(1); }
         }
 
-        /* Кнопка перемикання звуку */
         #sound-toggle {
             position: absolute;
             top: 15px;
@@ -170,22 +161,7 @@
         <source id="video-source" src="assets/video1.webm" type="video/webm">
     </video>
 
-    <!-- Відео-шнурки -->
-    <video id="rope-video-1" class="hidden-video-asset" loop muted playsinline>
-        <source src="assets/rope1.webm" type="video/webm">
-    </video>
-    <video id="rope-video-2" class="hidden-video-asset" loop muted playsinline>
-        <source src="assets/rope2.webm" type="video/webm">
-    </video>
-
-    <!-- Зелені обводки для шнурків -->
-    <video id="rope-outline-1" class="hidden-video-asset" loop muted playsinline>
-        <source src="assets/rope1_outline.webm" type="video/webm">
-    </video>
-    <video id="rope-outline-2" class="hidden-video-asset" loop muted playsinline>
-        <source src="assets/rope2_outline.webm" type="video/webm">
-    </video>
-
+    <!-- Canvas для рендерингу картинок та ефектів -->
     <canvas id="gameCanvas" width="360" height="640"></canvas>
 
     <!-- Кнопка звуку -->
@@ -226,10 +202,12 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const hand = document.getElementById('tutorial-hand');
 
-const videoRope1 = document.getElementById('rope-video-1');
-const videoRope2 = document.getElementById('rope-video-2');
-const videoOutline1 = document.getElementById('rope-outline-1');
-const videoOutline2 = document.getElementById('rope-outline-2');
+// Завантаження статичних зображень
+const imgToy = new Image(); imgToy.src = 'assets/toy.png'; // Зображення іграшки
+const imgRope1 = new Image(); imgRope1.src = 'assets/rope1.png';
+const imgRope2 = new Image(); imgRope2.src = 'assets/rope2.png';
+const imgOutline1 = new Image(); imgOutline1.src = 'assets/rope1_outline.png';
+const imgOutline2 = new Image(); imgOutline2.src = 'assets/rope2_outline.png';
 
 // Ініціалізація аудіо
 const bgMusic = new Audio('assets/bg_music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.1;
@@ -248,15 +226,15 @@ const nodes = {
         x: 166, y: 188, 
         radius: 110,     
         solved: false,
-        videoElement: videoRope1,
-        outlineElement: videoOutline1
+        img: imgRope1,
+        outlineImg: imgOutline1
     },
     node2: { 
         x: 164, y: 320, 
         radius: 110,     
         solved: false,
-        videoElement: videoRope2,
-        outlineElement: videoOutline2
+        img: imgRope2,
+        outlineImg: imgOutline2
     }
 };
 
@@ -267,11 +245,19 @@ function renderSplash() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.filter = 'blur(8px) brightness(50%)';
 
+    // Рендеримо іграшку на сплеші
+    ctx.save();
+    try {
+        ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
+    } catch (e) {}
+    ctx.restore();
+
+    // Шнурки поверх
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         ctx.save();
         try {
-            ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
         ctx.restore();
     });
@@ -285,11 +271,7 @@ function startGame() {
     document.getElementById('start-screen').classList.add('hidden');
     video.classList.remove('blurred');
     
-    video.play();
-    videoRope1.play().catch(() => {});
-    videoRope2.play().catch(() => {});
-    videoOutline1.play().catch(() => {});
-    videoOutline2.play().catch(() => {});
+    video.play().catch(() => {});
     
     if (!isMuted) {
         bgMusic.play().catch(() => console.log("Аудіо заблоковано"));
@@ -382,16 +364,15 @@ function triggerExplosion(node) {
     node.solved = true;
     solvedCount++;
     hideTutorial();
-    
-    try { 
-        node.videoElement.pause(); 
-        node.outlineElement.pause();
-    } catch(e) {}
 
     spawnParticles(node.x, node.y);
 
+    if (!isMuted) {
+        winSound.currentTime = 0; 
+        winSound.play().catch(() => {});
+    }
+
     if (solvedCount === 1) {
-        if (!isMuted) winSound.play().catch(() => {});
         showTutorial();
     } else if (solvedCount === 2) {
         if (!isMuted) {
@@ -413,13 +394,6 @@ function triggerEndGame() {
     video.load(); 
     video.classList.add('blurred'); 
     video.play();
-    
-    try { 
-        videoRope1.pause(); 
-        videoRope2.pause(); 
-        videoOutline1.pause(); 
-        videoOutline2.pause(); 
-    } catch(e) {}
 
     setTimeout(() => {
         document.getElementById('end-screen').classList.remove('hidden');
@@ -433,51 +407,40 @@ function ctaClick() {
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // СИНХРОНІЗАЦІЯ ВІДЕО (актуально для телефонів)
-    if (isGameStarted && solvedCount < 2) {
-        const masterTime = video.currentTime;
-        const maxOffset = 0.05; // Допустимий розсинхрон у секундах
-
-        if (!nodes.node1.solved) {
-            if (Math.abs(videoRope1.currentTime - masterTime) > maxOffset) {
-                videoRope1.currentTime = masterTime;
-            }
-            if (Math.abs(videoOutline1.currentTime - masterTime) > maxOffset) {
-                videoOutline1.currentTime = masterTime;
-            }
-        }
-        if (!nodes.node2.solved) {
-            if (Math.abs(videoRope2.currentTime - masterTime) > maxOffset) {
-                videoRope2.currentTime = masterTime;
-            }
-            if (Math.abs(videoOutline2.currentTime - masterTime) > maxOffset) {
-                videoOutline2.currentTime = masterTime;
-            }
-        }
+    // Малюємо іграшку на фоні, тільки поки гра не завершена
+    if (solvedCount < 2) {
+        ctx.save();
+        try {
+            ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
     }
 
+    // Малюємо активні шнурки та обводки
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         if (node.solved) return; 
 
+        // Основна текстура шнурка
         ctx.save();
         try {
-            ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
         ctx.restore();
 
+        // Пульсуюча обводка
         ctx.save();
         let pulseFactor = 0.6 + Math.sin(Date.now() * 0.012) * 0.3;
         let noiseFactor = (Math.random() - 0.5) * 0.12;
         ctx.globalAlpha = Math.min(1.0, Math.max(0.2, pulseFactor + noiseFactor));
         
         try {
-            ctx.drawImage(node.outlineElement, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(node.outlineImg, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
         ctx.restore();
     });
 
-    // Оновлення червоних частинок
+    // Оновлення частинок вибуху
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx; 

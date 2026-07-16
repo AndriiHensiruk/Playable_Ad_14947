@@ -31,6 +31,18 @@
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
         }
 
+        /* Фонове статичне зображення для усунення спалахів чорного */
+        #bg-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1; /* Найнижчий шар */
+            filter: blur(4px) brightness(0.5); /* Відразу робимо атмосферно приглушеним */
+        }
+
         video, canvas {
             position: absolute;
             top: 0; 
@@ -41,9 +53,20 @@
             transition: opacity 0.5s ease, filter 0.5s ease;
         }
 
+        /* Відео лежать над статичним фоном */
+        #bg-video-gameplay, #bg-video-final {
+            z-index: 2;
+        }
+
+        /* За замовчуванням приховуємо друге відео */
         #bg-video-final {
             opacity: 0;
             pointer-events: none;
+        }
+
+        /* Canvas малюється поверх відео */
+        #gameCanvas {
+            z-index: 3;
         }
 
         .blurred { 
@@ -161,6 +184,9 @@
 <body>
 
 <div id="game-wrapper">
+    <!-- Статичний бекграунд-заглушка (завжди під відео) -->
+    <img id="bg-placeholder" src="assets/toy.png" alt="Ведмедик">
+
     <!-- Перше фонове відео (активне спочатку) -->
     <video id="bg-video-gameplay" loop muted playsinline class="blurred" preload="auto">
         <source src="assets/video1.webm" type="video/webm">
@@ -255,6 +281,7 @@ function renderSplash() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.filter = 'blur(8px) brightness(50%)';
 
+    // Рендеримо іграшку на сплеші
     ctx.save();
     try {
         ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
@@ -282,6 +309,7 @@ function startGame() {
     
     videoGameplay.play().catch(() => {});
     
+    // Починаємо фоновий прогрів другого відео
     videoFinal.play().then(() => {
         videoFinal.pause();
         videoFinal.currentTime = 0;
@@ -403,14 +431,18 @@ window.addEventListener('touchstart', handleInteraction, { passive: false });
 function triggerEndGame() {
     hideTutorial();
     
+    // Миттєво запускаємо друге відео
     videoFinal.play().catch(() => {});
     videoFinal.style.opacity = "1";
     videoFinal.classList.add('blurred'); 
+
+    // Плавно приховуємо перше відео. Під ним у цей момент залишається видимим статичний bg-placeholder.
     videoGameplay.style.opacity = "0";
     setTimeout(() => {
         videoGameplay.pause();
     }, 500);
 
+    // Показуємо фінальну кнопку
     setTimeout(() => {
         document.getElementById('end-screen').classList.remove('hidden');
     }, 1000);
@@ -423,6 +455,7 @@ function ctaClick() {
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Малюємо іграшку на фоні, тільки поки гра не завершена
     if (solvedCount < 2) {
         ctx.save();
         try {
@@ -431,10 +464,12 @@ function update() {
         ctx.restore();
     }
 
+    // Малюємо активні шнурки та обводки
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         if (node.solved) return; 
 
+        // Основна текстура шнурка
         ctx.save();
         try {
             ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
@@ -453,6 +488,7 @@ function update() {
         ctx.restore();
     });
 
+    // Оновлення частинок вибуху
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx; 

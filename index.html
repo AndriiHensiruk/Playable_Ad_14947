@@ -41,7 +41,6 @@
             transition: opacity 0.5s ease, filter 0.5s ease;
         }
 
-        /* За замовчуванням приховуємо друге відео через opacity для плавності */
         #bg-video-final {
             opacity: 0;
             pointer-events: none;
@@ -256,7 +255,6 @@ function renderSplash() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.filter = 'blur(8px) brightness(50%)';
 
-    // Рендеримо іграшку на сплеші
     ctx.save();
     try {
         ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
@@ -284,7 +282,6 @@ function startGame() {
     
     videoGameplay.play().catch(() => {});
     
-    // Починаємо фоновий прогрів другого відео (ставимо на паузу на першому кадрі)
     videoFinal.play().then(() => {
         videoFinal.pause();
         videoFinal.currentTime = 0;
@@ -406,18 +403,14 @@ window.addEventListener('touchstart', handleInteraction, { passive: false });
 function triggerEndGame() {
     hideTutorial();
     
-    // Миттєво запускаємо фінальне відео і робимо його видимим
     videoFinal.play().catch(() => {});
     videoFinal.style.opacity = "1";
-    videoFinal.classList.add('blurred'); // зберігаємо стилі розмиття для фіналу
-
-    // М’яко ховаємо геймплейне відео
+    videoFinal.classList.add('blurred'); 
     videoGameplay.style.opacity = "0";
     setTimeout(() => {
         videoGameplay.pause();
     }, 500);
 
-    // Відображаємо фінальну кнопку
     setTimeout(() => {
         document.getElementById('end-screen').classList.remove('hidden');
     }, 1000);
@@ -430,7 +423,6 @@ function ctaClick() {
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Малюємо іграшку на фоні, тільки поки гра не завершена
     if (solvedCount < 2) {
         ctx.save();
         try {
@@ -439,12 +431,10 @@ function update() {
         ctx.restore();
     }
 
-    // Малюємо активні шнурки та обводки
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         if (node.solved) return; 
 
-        // Основна текстура шнурка
         ctx.save();
         try {
             ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
@@ -463,7 +453,6 @@ function update() {
         ctx.restore();
     });
 
-    // Оновлення частинок вибуху
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx; 

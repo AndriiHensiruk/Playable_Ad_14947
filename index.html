@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Playable_Ad_14947 </title>
+    <title>Playable_14947_En</title>
     <style>
         * { 
             box-sizing: border-box; 
@@ -79,9 +79,18 @@
             margin-bottom: 40px; 
         }
         
+        .btn-container {
+            position: relative;
+            width: 100%;
+            max-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .btn-png { 
             width: 100%; 
-            max-height: 80px; 
+            max-height: 280px; 
             object-fit: contain; 
             cursor: pointer; 
             animation: pulse 1.5s infinite ease-in-out; 
@@ -95,7 +104,7 @@
 
         #tutorial-hand {
             position: absolute; 
-            width: 60%; 
+            width: 70%; 
             height: auto;
             z-index: 5; 
             pointer-events: none; 
@@ -105,8 +114,24 @@
             animation: hand-move 1.8s infinite ease-in-out; 
         }
         @keyframes hand-move {
+            0% { transform: translate(60px, -60px) scale(1); }
+            50% { transform: translate(60px, 5px) scale(0.9); }
+            100% { transform: translate(60px, -60px) scale(1); }
+        }
+
+        #splash-hand {
+            position: absolute;
+            width: 65px;
+            height: 65px;
+            bottom: -20px;
+            right: 23%;
+            z-index: 15;
+            pointer-events: none;
+            animation: button-tap 1.8s infinite ease-in-out;
+        }
+        @keyframes button-tap {
             0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(0px, 45px) scale(0.9); }
+            50% { transform: translate(0, 55px) scale(0.8); }
             100% { transform: translate(0, 0) scale(1); }
         }
 
@@ -142,7 +167,7 @@
 <div id="game-wrapper">
     <!-- Фонове відео -->
     <video id="bg-video" loop muted playsinline class="blurred">
-        <source id="video-source" src="assets/video1.mp4" type="video/mp4">
+        <source id="video-source" src="assets/video1.webm" type="video/webm">
     </video>
 
     <!-- Відео-шнурки -->
@@ -153,21 +178,33 @@
         <source src="assets/rope2.webm" type="video/webm">
     </video>
 
+    <!-- Зелені обводки для шнурків -->
+    <video id="rope-outline-1" class="hidden-video-asset" loop muted playsinline>
+        <source src="assets/rope1_outline.webm" type="video/webm">
+    </video>
+    <video id="rope-outline-2" class="hidden-video-asset" loop muted playsinline>
+        <source src="assets/rope2_outline.webm" type="video/webm">
+    </video>
+
     <canvas id="gameCanvas" width="360" height="640"></canvas>
 
     <!-- Кнопка звуку -->
     <div id="sound-toggle" onclick="toggleMute(event)">
         <svg id="sound-icon" viewBox="0 0 24 24">
-            <!-- Іконка увімкненого звуку за замовчуванням -->
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
         </svg>
     </div>
 
+    <!-- Гральна рука підказки -->
     <img id="tutorial-hand" src="assets/hand.png" alt="Вказівка пальцем" class="hidden">
 
+    <!-- Стартовий екран з кнопкою та анімованою ІНШОЮ рукою тапу -->
     <div id="start-screen" class="ui-screen">
         <img src="assets/start_title.png" alt="Розв'яжи ведмедика" class="title-img">
-        <img src="assets/start_btn.png" alt="Грати" class="btn-png" onclick="startGame()">
+        <div class="btn-container" onclick="startGame()">
+            <img src="assets/start_btn.png" alt="Грати" class="btn-png">
+            <img id="splash-hand" src="assets/hand_splash.png" alt="Тап по кнопці">
+        </div>
     </div>
 
     <div id="end-screen" class="ui-screen hidden">
@@ -193,50 +230,37 @@ const hand = document.getElementById('tutorial-hand');
 
 const videoRope1 = document.getElementById('rope-video-1');
 const videoRope2 = document.getElementById('rope-video-2');
+const videoOutline1 = document.getElementById('rope-outline-1');
+const videoOutline2 = document.getElementById('rope-outline-2');
 
 // Ініціалізація аудіо
 const bgMusic = new Audio('assets/bg_music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.1;
 const startSound = new Audio('assets/start.m4a');
-const dragSound = new Audio('assets/rope_drag.mp3'); dragSound.loop = true;
 const winSound = new Audio('assets/win.mp3');
 const finalWinSound = new Audio('assets/final_win.m4a');
 
 let isMuted = false;
 let isGameStarted = false; 
-let isDragging = false;
-let activeNode = null;
 let lastInteractionTime = Date.now();
 let particles = [];
 let solvedCount = 0;
 
-const MAX_PULL_DISTANCE = 140; 
-
 const nodes = {
     node1: { 
-        offsetX: 0, offsetY: 0, scale: 1.0,      
-        pivotX: 180, pivotY: 150,  
-        startX: 166, startY: 188,  
-        endX: 166,   endY: 188,       
-        vx: 0, vy: 0,
+        x: 166, y: 188, 
+        radius: 110,     
         solved: false,
-        videoElement: videoRope1
+        videoElement: videoRope1,
+        outlineElement: videoOutline1
     },
     node2: { 
-        offsetX: 0, offsetY: 0, scale: 1.0,      
-        pivotX: 180, pivotY: 150,  
-        startX: 164, startY: 320,  
-        endX: 164,   endY: 320,       
-        vx: 0, vy: 0,
+        x: 164, y: 320, 
+        radius: 110,     
         solved: false,
-        videoElement: videoRope2
+        videoElement: videoRope2,
+        outlineElement: videoOutline2
     }
 };
-
-const spring = 0.14;
-const friction = 0.75;
-
-// Початкове налаштування гучності для плавного мікшування звуку тягнення
-dragSound.volume = 0;
 
 requestAnimationFrame(renderSplash);
 
@@ -266,9 +290,11 @@ function startGame() {
     video.play();
     videoRope1.play().catch(() => {});
     videoRope2.play().catch(() => {});
+    videoOutline1.play().catch(() => {});
+    videoOutline2.play().catch(() => {});
     
     if (!isMuted) {
-        bgMusic.play().catch(() => console.log("Аудіо заблоковано браузером"));
+        bgMusic.play().catch(() => console.log("Аудіо заблоковано"));
         startSound.play().catch(() => {});
     }
     
@@ -277,24 +303,17 @@ function startGame() {
 }
 
 function toggleMute(e) {
-    if (e) e.stopPropagation(); // Щоб клік по кнопці не тригерив натискання на ігрове поле
+    if (e) e.stopPropagation(); 
     isMuted = !isMuted;
-    
     const icon = document.getElementById('sound-icon');
     
     if (isMuted) {
-        // SVG іконка вимкненого звуку
         icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
-        
         bgMusic.pause();
-        dragSound.pause();
     } else {
-        // SVG іконка увімкненого звуку
         icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
-        
         if (isGameStarted && solvedCount < 2) {
             bgMusic.play().catch(() => {});
-            if (isDragging) dragSound.play().catch(() => {});
         }
     }
 }
@@ -304,8 +323,8 @@ function showTutorial() {
     if (targetNode) {
         hand.classList.remove('hidden');
         hand.classList.add('hand-anim');
-        hand.style.left = (targetNode.endX - 15) + 'px';
-        hand.style.top = (targetNode.endY + 15) + 'px';
+        hand.style.left = (targetNode.x - 15) + 'px';
+        hand.style.top = (targetNode.y + 15) + 'px';
     }
 }
 
@@ -316,15 +335,24 @@ function hideTutorial() {
 }
 
 function spawnParticles(x, y) {
-    for (let i = 0; i < 35; i++) {
+    const particleCount = 65; 
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 12 + 4; 
+        
+        const hue = Math.random() * 20; 
+        
         particles.push({
-            x: x, y: y,
-            vx: (Math.random() - 0.5) * 8,
-            vy: (Math.random() - 0.5) * 8 - 2,
-            radius: Math.random() * 4 + 2,
-            color: `hsl(${Math.random() * 40 + 15}, 100%, 70%)`, 
+            x: x, 
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.5, 
+            radius: Math.random() * 5 + 3,
+            color: `hsl(${hue}, 100%, 55%)`, 
             alpha: 1,
-            life: Math.random() * 20 + 20
+            life: Math.random() * 25 + 25,
+            rotation: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.3
         });
     }
 }
@@ -339,100 +367,69 @@ function getMousePos(e) {
     };
 }
 
-function onStart(e) {
+function handleInteraction(e) {
     if (!isGameStarted || solvedCount >= 2) return;
     const pos = getMousePos(e);
     
     for (let key in nodes) {
         let node = nodes[key];
-        if (!node.solved && Math.hypot(pos.x - node.endX, pos.y - node.endY) < 65) {
-            isDragging = true;
-            activeNode = node;
-            hideTutorial();
-            if (!isMuted) {
-                dragSound.volume = 0.1;
-                dragSound.play().catch(() => {});
-            }
+        if (!node.solved && Math.hypot(pos.x - node.x, pos.y - node.y) < node.radius) {
+            triggerExplosion(node);
             break; 
         }
     }
 }
 
-function onMove(e) {
-    if (!isDragging || !activeNode) return;
-    e.preventDefault();
-    const pos = getMousePos(e);
+function triggerExplosion(node) {
+    node.solved = true;
+    solvedCount++;
+    hideTutorial();
     
-    activeNode.endX = pos.x;
-    activeNode.endY = pos.y;
+    try { 
+        node.videoElement.pause(); 
+        node.outlineElement.pause();
+    } catch(e) {}
 
-    let distance = Math.hypot(activeNode.endX - activeNode.startX, activeNode.endY - activeNode.startY);
-    let pullProgress = Math.min(distance / MAX_PULL_DISTANCE, 1.0);
+    spawnParticles(node.x, node.y);
 
-    // Динамічна зміна гучності шурхоту залежно від сили натягу шнурка
-    if (!isMuted) {
-        dragSound.volume = Math.max(0.1, pullProgress * 0.8);
-    }
-
-    if (distance > MAX_PULL_DISTANCE) {
-        isDragging = false;
-        activeNode.solved = true;
-        solvedCount++;
-        dragSound.pause();
-        
-        try { activeNode.videoElement.pause(); } catch(e) {}
-
-        spawnParticles(activeNode.endX, activeNode.endY);
-
-        if (solvedCount === 1) {
-            if (!isMuted) winSound.play().catch(() => {});
-            showTutorial();
-        } else if (solvedCount === 2) {
-            if (!isMuted) {
-                bgMusic.pause();
-                finalWinSound.play().catch(() => {});
-            }
-            triggerEndGame();
+    if (solvedCount === 1) {
+        if (!isMuted) winSound.play().catch(() => {});
+        showTutorial();
+    } else if (solvedCount === 2) {
+        if (!isMuted) {
+            bgMusic.pause();
+            finalWinSound.play().catch(() => {});
         }
-        activeNode = null;
+        triggerEndGame();
     }
 }
 
-function onEnd() {
-    if (isDragging) {
-        isDragging = false;
-        activeNode = null;
-        dragSound.pause();
-    }
-}
-
-window.addEventListener('mousedown', onStart);
-window.addEventListener('mousemove', onMove);
-window.addEventListener('mouseup', onEnd);
-window.addEventListener('touchstart', onStart, { passive: false });
-window.addEventListener('touchmove', onMove, { passive: false });
-window.addEventListener('touchend', onEnd);
+window.addEventListener('mousedown', handleInteraction);
+window.addEventListener('touchstart', handleInteraction, { passive: false });
 
 function triggerEndGame() {
-   hideTutorial();
+    hideTutorial();
     
     video.removeAttribute('loop');
-    
-    videoSource.src = 'assets/video2.mp4';
+    videoSource.src = 'assets/video2.webm';
     video.load(); 
     video.classList.add('blurred'); 
     video.play();
     
-    try { videoRope1.pause(); videoRope2.pause(); } catch(e) {}
+    try { 
+        videoRope1.pause(); 
+        videoRope2.pause(); 
+        videoOutline1.pause(); 
+        videoOutline2.pause(); 
+    } catch(e) {}
 
     setTimeout(() => {
         document.getElementById('end-screen').classList.remove('hidden');
     }, 1000);
-
 }
 
 function ctaClick() {
-    window.open('https://your-store-link.com', '_blank');
+    window.open('https://honeytoon.com/comic-video/prank-goes-wrong?n=1', '_self');
 }
 
 function update() {
@@ -442,68 +439,57 @@ function update() {
         let node = nodes[key];
         if (node.solved) return; 
 
-        if (!isDragging || activeNode !== node) {
-            let ax = (node.startX - node.endX) * spring;
-            let ay = (node.startY - node.endY) * spring;
-            node.vx = (node.vx + ax) * friction;
-            node.vy = (node.vy + ay) * friction;
-            node.endX += node.vx;
-            node.endY += node.vy;
-        }
-
-        let pullDist = Math.hypot(node.endX - node.startX, node.endY - node.startY);
-        let pullProgress = Math.min(pullDist / MAX_PULL_DISTANCE, 1.0);
-
+        // 1. Базовий шнурок
         ctx.save();
-        ctx.translate(node.pivotX, node.pivotY);
-
-        let stretchLen = 1 + (pullProgress * 0.3); 
-        let thicknessFactor = 1 - (pullProgress * 0.4); 
-
-        ctx.scale(thicknessFactor, stretchLen);
-        ctx.translate(-node.pivotX, -node.pivotY);
-        ctx.globalAlpha = 1.0 - pullProgress;
-
         try {
             ctx.drawImage(node.videoElement, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
-        
         ctx.restore();
 
-        // Візуалізація хітбоксу
+        // 2. Зелена обводка з неоновим мерехтінням
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(node.endX, node.endY, 65, 0, Math.PI * 2);
+        let pulseFactor = 0.6 + Math.sin(Date.now() * 0.012) * 0.3;
+        let noiseFactor = (Math.random() - 0.5) * 0.12;
+        ctx.globalAlpha = Math.min(1.0, Math.max(0.2, pulseFactor + noiseFactor));
         
-        if (isDragging && activeNode === node) {
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';  
-            ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
-        } else {
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; 
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
-        }
-        
-        ctx.lineWidth = 2;
-        ctx.fill();
-        ctx.stroke();
+        try {
+            ctx.drawImage(node.outlineElement, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
         ctx.restore();
     });
 
+    // Оновлення червоних частинок
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
-        p.x += p.vx; p.y += p.vy;
+        p.x += p.vx; 
+        p.y += p.vy;
+        p.vy += 0.15; 
+        p.rotation += p.vRot;
         p.alpha -= 1 / p.life;
+        
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.moveTo(0, -p.radius);
+        ctx.lineTo(p.radius, 0);
+        ctx.lineTo(0, p.radius);
+        ctx.lineTo(-p.radius, 0);
+        ctx.closePath();
+        
         ctx.fillStyle = p.color;
+        ctx.shadowBlur = 10;
+        // Червоне неонове світіння навколо частинок
+        ctx.shadowColor = p.color;
         ctx.fill();
         ctx.restore();
+        
         if (p.alpha <= 0) particles.splice(i, 1);
     }
 
-    if (!isDragging && Date.now() - lastInteractionTime > 3000 && solvedCount < 2) {
+    if (Date.now() - lastInteractionTime > 3000 && solvedCount < 2) {
         showTutorial();
     }
 

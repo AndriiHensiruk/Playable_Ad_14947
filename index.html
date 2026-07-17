@@ -31,7 +31,7 @@
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
         }
 
-        /* Фонове статичне зображення для усунення спалахів чорного */
+        /* Головне статичне фонове зображення на самому низу */
         #bg-placeholder {
             position: absolute;
             top: 0;
@@ -40,7 +40,17 @@
             height: 100%;
             object-fit: cover;
             z-index: 1;
-            filter: blur(4px) brightness(0.5);
+        }
+
+        /* Підкладка безпосередньо під відео (використовує загальний фон) */
+        #bg-video-fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2;
         }
 
         video, canvas {
@@ -53,9 +63,9 @@
             transition: opacity 0.5s ease, filter 0.5s ease;
         }
 
-        /* Відео лежать над статичним фоном */
+        /* Відео лежать над фоновими картинками */
         #bg-video-gameplay, #bg-video-final {
-            z-index: 2;
+            z-index: 3;
         }
 
         /* За замовчуванням приховуємо друге відео */
@@ -66,7 +76,7 @@
 
         /* Canvas малюється поверх відео */
         #gameCanvas {
-            z-index: 3;
+            z-index: 4;
         }
 
         .blurred { 
@@ -108,7 +118,7 @@
             align-items: center;
         }
 
-        .btn-png { 
+        .btn-webp { 
             width: 100%; 
             max-height: 280px; 
             object-fit: contain; 
@@ -167,7 +177,11 @@
 <body>
 
 <div id="game-wrapper">
-    <img id="bg-placeholder" src="assets/toy.png" alt="Ведмедик">
+    <!-- Підкладаємо правильний bg_image на самий низ -->
+    <img id="bg-placeholder" src="assets/bg_image.webp" alt="Фон">
+    
+    <!-- Картинка-підкладка чітко під відео -->
+    <img id="bg-video-fallback" src="assets/bg_image.webp" alt="Фон під відео">
 
     <video id="bg-video-gameplay" loop muted playsinline class="blurred" preload="auto">
         <source src="assets/video1.webm" type="video/webm">
@@ -186,15 +200,15 @@
     </div>
 
     <div id="start-screen" class="ui-screen">
-        <img src="assets/start_title.png" alt="Розв'яжи ведмедика" class="title-img">
+        <img src="assets/start_title.webp" alt="Розв'яжи ведмедика" class="title-img">
         <div class="btn-container" onclick="startGame()">
-            <img src="assets/start_btn.png" alt="Грати" class="btn-png">
-            <img id="splash-hand" src="assets/hand_splash.png" alt="Тап по кнопці">
+            <img src="assets/start_btn.webp" alt="Грати" class="btn-webp">
+            <img id="splash-hand" src="assets/hand_splash.webp" alt="Тап по кнопці">
         </div>
     </div>
 
     <div id="end-screen" class="ui-screen hidden">
-        <img src="assets/final_btn.png" alt="Забрати приз" class="btn-png" onclick="ctaClick()">
+        <img src="assets/final_btn.webp" alt="Забрати приз" class="btn-webp" onclick="ctaClick()">
     </div>
 </div>
 
@@ -214,11 +228,11 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Завантаження статичних зображень
-const imgToy = new Image(); imgToy.src = 'assets/toy.png';
-const imgRope1 = new Image(); imgRope1.src = 'assets/rope1.png';
-const imgRope2 = new Image(); imgRope2.src = 'assets/rope2.png';
-const imgOutline1 = new Image(); imgOutline1.src = 'assets/rope1_outline.png';
-const imgOutline2 = new Image(); imgOutline2.src = 'assets/rope2_outline.png';
+const imgToy = new Image(); imgToy.src = 'assets/toy.webp';
+const imgRope1 = new Image(); imgRope1.src = 'assets/rope1.webp';
+const imgRope2 = new Image(); imgRope2.src = 'assets/rope2.webp';
+const imgOutline1 = new Image(); imgOutline1.src = 'assets/rope1_outline.webp';
+const imgOutline2 = new Image(); imgOutline2.src = 'assets/rope2_outline.webp';
 
 // Ініціалізація аудіо
 const bgMusic = new Audio('assets/bg_music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.1;
@@ -253,8 +267,11 @@ requestAnimationFrame(renderSplash);
 function renderSplash() {
     if (isGameStarted) return; 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Ефект розмиття для сплеш-екрану залишаємо тільки на рендеринг canvas
     ctx.filter = 'blur(8px) brightness(50%)';
 
+    // Рендеримо саму іграшку поверх bg_image на сплеші
     ctx.save();
     try {
         ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
@@ -401,7 +418,7 @@ function ctaClick() {
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Малюємо іграшку на фоні, тільки поки гра не завершена
+    // Малюємо іграшку на фоні canvas, тільки поки гра не завершена
     if (solvedCount < 2) {
         ctx.save();
         try {
@@ -410,19 +427,16 @@ function update() {
         ctx.restore();
     }
 
-    // Малюємо активні шнурки та обводки
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         if (node.solved) return; 
 
-        // Основна текстура шнурка
         ctx.save();
         try {
             ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
         } catch (e) {}
         ctx.restore();
 
-        // Пульсуюча обводка
         ctx.save();
         let pulseFactor = 0.6 + Math.sin(Date.now() * 0.012) * 0.3;
         let noiseFactor = (Math.random() - 0.5) * 0.12;
@@ -434,7 +448,6 @@ function update() {
         ctx.restore();
     });
 
-    // Оновлення частинок вибуху
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx; 

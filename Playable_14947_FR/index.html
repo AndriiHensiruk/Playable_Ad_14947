@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Playable_14947_Fr</title>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            user-select: none; 
+            -webkit-user-select: none; 
+        }
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #111; 
+            overflow: hidden; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        #game-wrapper {
+            position: relative;
+            width: 360px;
+            height: 640px;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        /* Головне статичне фонове зображення на самому низу */
+        #bg-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* Підкладка безпосередньо під відео (використовує загальний фон) */
+        #bg-video-fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0; 
+            left: 0;
+            width: 100%; 
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.5s ease, filter 0.5s ease;
+        }
+
+        /* Відео лежать над фоновими картинками */
+        #bg-video-gameplay, #bg-video-final {
+            z-index: 3;
+        }
+
+        /* За замовчуванням приховуємо друге відео */
+        #bg-video-final {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Canvas малюється поверх відео */
+        #gameCanvas {
+            z-index: 4;
+        }
+
+        .blurred { 
+            filter: blur(4px) brightness(0.5); 
+        }
+
+        .ui-screen {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            z-index: 10; 
+            padding: 20px; 
+            transition: opacity 0.5s ease;
+        }
+        .hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
+
+        .title-img { 
+            width: 100%; 
+            max-height: 150px; 
+            object-fit: contain; 
+            margin-bottom: 40px; 
+        }
+        
+        .btn-container {
+            position: relative;
+            width: 100%;
+            max-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-webp { 
+            width: 100%; 
+            max-height: 280px; 
+            object-fit: contain; 
+            cursor: pointer; 
+            animation: pulse 1.5s infinite ease-in-out; 
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        #splash-hand {
+            position: absolute;
+            width: 65px;
+            height: 65px;
+            bottom: -20px;
+            right: 23%;
+            z-index: 15;
+            pointer-events: none;
+            animation: button-tap 1.8s infinite ease-in-out;
+        }
+        @keyframes button-tap {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(0, 55px) scale(0.8); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        #sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            z-index: 20;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            transition: transform 0.2s;
+        }
+        #sound-toggle:active {
+            transform: scale(0.9);
+        }
+        #sound-toggle svg {
+            width: 22px;
+            height: 22px;
+            fill: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <!-- Підкладаємо правильний bg_image на самий низ -->
+    <img id="bg-placeholder" src="assets/bg_image.webp" alt="Фон">
+    
+    <img id="bg-video-fallback" src="assets/bg_image.webp" alt="Фон під відео">
+
+    <video id="bg-video-gameplay" loop muted playsinline class="blurred" preload="auto">
+        <source src="assets/video1.webm" type="video/webm">
+    </video>
+
+    <video id="bg-video-final" muted playsinline class="blurred" preload="auto">
+        <source src="assets/video2.webm" type="video/webm">
+    </video>
+
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <div id="sound-toggle" onclick="toggleMute(event)">
+        <svg id="sound-icon" viewBox="0 0 24 24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+    </div>
+
+    <div id="start-screen" class="ui-screen">
+        <img src="assets/start_title.webp" alt="Розв'яжи ведмедика" class="title-img">
+        <div class="btn-container" onclick="startGame()">
+            <img src="assets/start_btn.webp" alt="Грати" class="btn-webp">
+            <img id="splash-hand" src="assets/hand_splash.webp" alt="Тап по кнопці">
+        </div>
+    </div>
+
+    <div id="end-screen" class="ui-screen hidden">
+        <img src="assets/final_btn.webp" alt="Забрати приз" class="btn-webp" onclick="ctaClick()">
+    </div>
+</div>
+
+<script>
+function resizeGame() {
+    const wrapper = document.getElementById('game-wrapper');
+    const scale = Math.min(window.innerWidth / 360, window.innerHeight / 640);
+    wrapper.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', resizeGame);
+window.addEventListener('load', resizeGame);
+resizeGame();
+
+const videoGameplay = document.getElementById('bg-video-gameplay');
+const videoFinal = document.getElementById('bg-video-final');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Завантаження статичних зображень
+const imgToy = new Image(); imgToy.src = 'assets/toy.webp';
+const imgRope1 = new Image(); imgRope1.src = 'assets/rope1.webp';
+const imgRope2 = new Image(); imgRope2.src = 'assets/rope2.webp';
+const imgOutline1 = new Image(); imgOutline1.src = 'assets/rope1_outline.webp';
+const imgOutline2 = new Image(); imgOutline2.src = 'assets/rope2_outline.webp';
+
+// Ініціалізація аудіо
+const bgMusic = new Audio('assets/bg_music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.1;
+const startSound = new Audio('assets/start.wav');
+const winSound = new Audio('assets/win.mp3');
+const finalWinSound = new Audio('assets/final_win.wav');
+
+let isMuted = false;
+let isGameStarted = false; 
+let particles = [];
+let solvedCount = 0;
+
+const nodes = {
+    node1: { 
+        x: 166, y: 188, 
+        radius: 110,     
+        solved: false,
+        img: imgRope1,
+        outlineImg: imgOutline1
+    },
+    node2: { 
+        x: 164, y: 320, 
+        radius: 110,     
+        solved: false,
+        img: imgRope2,
+        outlineImg: imgOutline2
+    }
+};
+
+requestAnimationFrame(renderSplash);
+
+function renderSplash() {
+    if (isGameStarted) return; 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.filter = 'blur(8px) brightness(50%)';
+
+    ctx.save();
+    try {
+        ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
+    } catch (e) {}
+    ctx.restore();
+
+    ['node1', 'node2'].forEach(key => {
+        let node = nodes[key];
+        ctx.save();
+        try {
+            ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
+    });
+
+    ctx.filter = 'none';
+    requestAnimationFrame(renderSplash);
+}
+
+function startGame() {
+    isGameStarted = true; 
+    document.getElementById('start-screen').classList.add('hidden');
+    videoGameplay.classList.remove('blurred');
+    
+    videoGameplay.play().catch(() => {});
+    
+    videoFinal.play().then(() => {
+        videoFinal.pause();
+        videoFinal.currentTime = 0;
+    }).catch(() => {});
+    
+    if (!isMuted) {
+        bgMusic.play().catch(() => console.log("Аудіо заблоковано"));
+        startSound.play().catch(() => {});
+    }
+    
+    update(); 
+}
+
+function toggleMute(e) {
+    if (e) e.stopPropagation(); 
+    isMuted = !isMuted;
+    const icon = document.getElementById('sound-icon');
+    
+    if (isMuted) {
+        icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+        bgMusic.pause();
+    } else {
+        icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+        if (isGameStarted && solvedCount < 2) {
+            bgMusic.play().catch(() => {});
+        }
+    }
+}
+
+function spawnParticles(x, y) {
+    const particleCount = 65; 
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 12 + 4; 
+        
+        const hue = Math.random() * 20; 
+        
+        particles.push({
+            x: x, 
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.5, 
+            radius: Math.random() * 5 + 3,
+            color: `hsl(${hue}, 100%, 55%)`, 
+            alpha: 1,
+            life: Math.random() * 25 + 25,
+            rotation: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.3
+        });
+    }
+}
+
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+function handleInteraction(e) {
+    if (!isGameStarted || solvedCount >= 2) return;
+    const pos = getMousePos(e);
+    
+    for (let key in nodes) {
+        let node = nodes[key];
+        if (!node.solved && Math.hypot(pos.x - node.x, pos.y - node.y) < node.radius) {
+            triggerExplosion(node);
+            break; 
+        }
+    }
+}
+
+function triggerExplosion(node) {
+    node.solved = true;
+    solvedCount++;
+
+    spawnParticles(node.x, node.y);
+
+    if (!isMuted) {
+        winSound.currentTime = 0;
+        winSound.play().catch(() => {});
+    }
+
+    if (solvedCount === 2) {
+        if (!isMuted) {
+            bgMusic.pause();
+            finalWinSound.play().catch(() => {});
+        }
+        triggerEndGame();
+    }
+}
+
+window.addEventListener('mousedown', handleInteraction);
+window.addEventListener('touchstart', handleInteraction, { passive: false });
+
+function triggerEndGame() {
+    videoFinal.play().catch(() => {});
+    videoFinal.style.opacity = "1";
+    videoFinal.classList.add('blurred'); 
+
+    videoGameplay.style.opacity = "0";
+    setTimeout(() => {
+        videoGameplay.pause();
+    }, 500);
+
+    setTimeout(() => {
+        document.getElementById('end-screen').classList.remove('hidden');
+    }, 1000);
+}
+
+function ctaClick() {
+    window.open('https://hanimax.com/fr/serials/la-blague-tourne-mal-auteur-pantsumania/1', '_self');
+}
+
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (solvedCount < 2) {
+        ctx.save();
+        try {
+            ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
+    }
+
+    ['node1', 'node2'].forEach(key => {
+        let node = nodes[key];
+        if (node.solved) return; 
+
+        ctx.save();
+        try {
+            ctx.drawImage(node.img, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
+
+        ctx.save();
+        let pulseFactor = 0.6 + Math.sin(Date.now() * 0.012) * 0.3;
+        let noiseFactor = (Math.random() - 0.5) * 0.12;
+        ctx.globalAlpha = Math.min(1.0, Math.max(0.2, pulseFactor + noiseFactor));
+        
+        try {
+            ctx.drawImage(node.outlineImg, 0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+        ctx.restore();
+    });
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; 
+        p.y += p.vy;
+        p.vy += 0.15; 
+        p.rotation += p.vRot;
+        p.alpha -= 1 / p.life;
+        
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        
+        ctx.beginPath();
+        ctx.moveTo(0, -p.radius);
+        ctx.lineTo(p.radius, 0);
+        ctx.lineTo(0, p.radius);
+        ctx.lineTo(-p.radius, 0);
+        ctx.closePath();
+        
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
+        ctx.fill();
+        ctx.restore();
+        
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+
+    requestAnimationFrame(update);
+}
+</script>
+
+</body>
+</html>

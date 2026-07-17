@@ -255,14 +255,12 @@ function renderSplash() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.filter = 'blur(8px) brightness(50%)';
 
-    // Рендеримо іграшку на сплеші
     ctx.save();
     try {
         ctx.drawImage(imgToy, 0, 0, canvas.width, canvas.height);
     } catch (e) {}
     ctx.restore();
 
-    // Шнурки поверх
     ['node1', 'node2'].forEach(key => {
         let node = nodes[key];
         ctx.save();
@@ -283,7 +281,6 @@ function startGame() {
     
     videoGameplay.play().catch(() => {});
     
-    // Починаємо фоновий прогрів другого відео
     videoFinal.play().then(() => {
         videoFinal.pause();
         videoFinal.currentTime = 0;
@@ -398,7 +395,7 @@ function triggerEndGame() {
 }
 
 function ctaClick() {
-    window.open('https://honeytoon.com/comic-video/prank-goes-wrong?n=1', '_self');
+    window.open('https://hanimax.com/serials/prank-goes-wrong/1', '_self');
 }
 
 function update() {
